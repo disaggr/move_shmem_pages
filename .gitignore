@@ -1,0 +1,21 @@
+# object files
+*.o
+
+# binaries
+move_shmem_pages
+create_shmem
+unlink_shmem
+shmem_numainfo
+
+# build system generated files
+Makefile
+Makefile.in
+aclocal.m4
+autom4te.cache/
+config.*
+configure
+libtool
+scripts/
+stamp-h1
+.dirstamp
+.deps/
