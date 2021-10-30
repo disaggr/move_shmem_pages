@@ -74,7 +74,10 @@ main (int argc, char *argv[])
 	}
 
 	// print shmem size
-	printf("%s: 0x%08zx bytes\n", arguments.shm_path, st.st_size);
+	printf("%s\n  base: 0x%012zx bytes\n  size: 0x%012zx bytes\n\n",
+		arguments.shm_path, (uintptr_t)shmem, st.st_size);
+	printf("  page: 0x%012zx bytes (%zu KiB)\n\n",
+		sysconf(_SC_PAGESIZE), sysconf(_SC_PAGESIZE) / 1024);
 	if (st.st_size == 0)
 		return 0;
 
@@ -116,9 +119,9 @@ main (int argc, char *argv[])
 	{
 		if (status[i] != status[region_start])
 		{
-			printf("  0x%08lx ... 0x%08lx\t%i",
-				(uintptr_t)pages[region_start],
-				(uintptr_t)pages[i - 1] + sysconf(_SC_PAGESIZE) - 1,
+			printf("  0x%012lx ... 0x%012lx\t%i",
+				(off_t)(pages[region_start] - shmem),
+				(off_t)(pages[i - 1] + sysconf(_SC_PAGESIZE) - 1 - shmem),
 				status[region_start]);
 			if (status[region_start] < 0)
 			{
@@ -128,9 +131,9 @@ main (int argc, char *argv[])
 			region_start = i;
 		}
 	}
-	printf("  0x%08lx ... 0x%08lx\t%i",
-		(uintptr_t)pages[region_start],
-		(uintptr_t)pages[num_pages - 1] + sysconf(_SC_PAGESIZE) - 1,
+	printf("  0x%012lx ... 0x%012lx\t%i",
+		(off_t)(pages[region_start] - shmem),
+		(off_t)(pages[num_pages - 1] + sysconf(_SC_PAGESIZE) - 1 - shmem),
 		status[region_start]);
 	if (status[region_start] < 0)
 	{

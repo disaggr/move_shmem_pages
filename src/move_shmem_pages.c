@@ -19,8 +19,8 @@
 struct arguments_t arguments = {
 	shm_path: NULL,
 	node_id: -1,
-	start_off: 0x0,
-	end_off: 0x0};
+	start_off: 0,
+	end_off: -1};
 
 void
 usage ()
@@ -121,14 +121,33 @@ main (int argc, char *argv[])
 		return 1;
 	}
 
-	// determine placement
+	// determine amount of pages to move
 	size_t num_pages = st.st_size / sysconf(_SC_PAGESIZE);
 	if (st.st_size % sysconf(_SC_PAGESIZE) > 0)
 		num_pages += 1;
 
-	void **pages = malloc(sizeof(*pages) * num_pages);
-	int *nodes = malloc(sizeof(*nodes) * num_pages);
-	int *status = malloc(sizeof(*status) * num_pages);
+	// sanitize inputs
+	if (arguments.start_off < 0)
+		arguments.start_off = 0;
+	if (arguments.end_off < arguments.start_off && arguments.end_off >= 0)
+		arguments.end_off = arguments.start_off;
+
+	// if on page boundary, round down. this is the expected behaviour.
+	off_t end_off = arguments.end_off;
+	if (end_off % sysconf(_SC_PAGESIZE) == 0 && end_off > arguments.start_off)
+		end_off -= 1;
+
+	int start_page = arguments.start_off / sysconf(_SC_PAGESIZE);
+	int end_page = num_pages - 1;
+	if (arguments.end_off >= 0)
+		end_page = end_off / sysconf(_SC_PAGESIZE);
+
+	int move_page_count = end_page - start_page + 1;
+
+	// determine placement
+	void **pages = malloc(sizeof(*pages) * move_page_count);
+	int *nodes = malloc(sizeof(*nodes) * move_page_count);
+	int *status = malloc(sizeof(*status) * move_page_count);
 
 	if (pages == NULL || nodes == NULL || status == NULL)
 	{
@@ -138,29 +157,16 @@ main (int argc, char *argv[])
 	}
 
 	size_t i;
-	for (i = 0; i < num_pages; ++i)
+	for (i = start_page; i <= end_page; ++i)
 	{
-		pages[i] = shmem + i * sysconf(_SC_PAGESIZE);
-		nodes[i] = arguments.node_id;
-		status[i] = 0;
+		pages[i - start_page] = shmem + i * sysconf(_SC_PAGESIZE);
+		nodes[i - start_page] = arguments.node_id;
+		status[i - start_page] = 0;
 		// touch the page once, to make move_pages happy
-		(void)*(volatile int*)pages[i];
+		(void)*(volatile int*)pages[i - start_page];
 	}
 
-	int first_page = arguments.start_off / sysconf(_SC_PAGESIZE);
-	int last_page = num_pages - 1;
-	if (arguments.end_off > 0)
-	{
-		last_page = arguments.end_off / sysconf(_SC_PAGESIZE);
-		if (arguments.end_off % sysconf(_SC_PAGESIZE))
-			last_page += 1;
-	}
-
-	res = move_pages(0,
-		last_page - first_page + 1,
-		pages + first_page,
-		nodes + first_page,
-		status + first_page, 0);
+	res = move_pages(0, move_page_count, pages, nodes, status, 0);
 	if (res != 0)
 	{
 		fprintf(stderr, "%s: error: %s: failed to move pages: %s\n",
@@ -169,15 +175,15 @@ main (int argc, char *argv[])
 	}
 
 	// print placement information
-	int region_start = first_page;
+	int region_start = 0;
 	res = 0;
-	for (i = first_page; i < last_page + 1; ++i)
+	for (i = 0; i < move_page_count; ++i)
 	{
 		if (status[i] != status[region_start])
 		{
-			printf("  0x%08lx ... 0x%08lx",
-				(uintptr_t)pages[region_start],
-				(uintptr_t)pages[i - 1] + sysconf(_SC_PAGESIZE) - 1);
+			printf("  0x%012lx ... 0x%012lx",
+				(off_t)(pages[region_start] - shmem),
+				(off_t)(pages[i - 1] + sysconf(_SC_PAGESIZE) - 1 - shmem));
 			if (status[region_start] == arguments.node_id)
 			{
 				printf("\tOK");
@@ -193,9 +199,9 @@ main (int argc, char *argv[])
 			region_start = i;
 		}
 	}
-	printf("  0x%08lx ... 0x%08lx",
-		(uintptr_t)pages[region_start],
-		(uintptr_t)pages[last_page] + sysconf(_SC_PAGESIZE) - 1);
+	printf("  0x%012lx ... 0x%012lx",
+		(off_t)(pages[region_start] - shmem),
+		(off_t)(pages[move_page_count - 1] + sysconf(_SC_PAGESIZE) - 1 - shmem));
 	if (status[region_start] == arguments.node_id)
 	{
 		printf("\tOK");
