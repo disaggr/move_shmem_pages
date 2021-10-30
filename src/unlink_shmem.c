@@ -39,7 +39,7 @@ main (int argc, char *argv[])
 	int res = shm_unlink(arguments.shm_path);
 	if (res != 0)
 	{
-		fprintf(stderr, "%s: error: %s: could not unlink:  %s\n",
+		fprintf(stderr, "%s: error: %s: could not unlink: %s\n",
 			program_invocation_name, arguments.shm_path, strerror(errno));
 		return 1;
 	}
