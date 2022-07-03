@@ -40,7 +40,8 @@ main (int argc, char *argv[])
 	arguments.shm_path = argv[1];
 
 	// open existing shmem
-	int fd = shm_open(arguments.shm_path, O_RDONLY, 0);
+	//int fd = shm_open(arguments.shm_path, O_RDONLY, 0);
+	int fd = open(arguments.shm_path, O_RDONLY, 0);
 	if (fd == -1)
 	{
 		fprintf(stderr, "%s: error: %s: %s\n",
