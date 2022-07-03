@@ -166,7 +166,7 @@ main (int argc, char *argv[])
 		(void)*(volatile int*)pages[i - start_page];
 	}
 
-	res = move_pages(0, move_page_count, pages, nodes, status, 0);
+	res = move_pages(0, move_page_count, pages, nodes, status, MPOL_MF_MOVE_ALL);
 	if (res != 0)
 	{
 		fprintf(stderr, "%s: error: %s: failed to move pages: %s\n",
