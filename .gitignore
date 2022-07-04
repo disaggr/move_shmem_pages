@@ -6,6 +6,7 @@ move_shmem_pages
 create_shmem
 unlink_shmem
 shmem_numainfo
+pid_numainfo
 
 # build system generated files
 Makefile
